@@ -207,49 +207,84 @@ const matches: Match[] = [
 ];
 
 const mockDoubleEliminationMatches = {
+  // Winners bracket (upper): expected 7 matches in order.
+  // R1: 4 matches, R2: 2 matches, R3 (winners final): 1 match.
   upper: [
+    // Winners Round 1 (4 matches)
     {
-      id: "upper-m1",
-      name: "Match 1",
+      id: "w1",
+      name: "Winners R1 - Match 1",
       numberOfRounds: 3,
-      topParty: { name: "Team A" },
-      bottomParty: { name: "Team B" },
+      topParty: { name: "P1" },
+      bottomParty: { name: "P2" },
     },
     {
-      id: "upper-m2",
-      name: "Match 2",
+      id: "w2",
+      name: "Winners R1 - Match 2",
       numberOfRounds: 3,
-      topParty: { name: "Team C" },
-      bottomParty: { name: "Team D" },
+      topParty: { name: "P3" },
+      bottomParty: { name: "P4" },
     },
     {
-      id: "upper-m3",
-      name: "Upper Final",
+      id: "w3",
+      name: "Winners R1 - Match 3",
       numberOfRounds: 3,
-      topParty: null, // Teams to be determined from winners of Round 1
+      topParty: { name: "P5" },
+      bottomParty: { name: "P6" },
+    },
+    {
+      id: "w4",
+      name: "Winners R1 - Match 4",
+      numberOfRounds: 3,
+      topParty: { name: "P7" },
+      bottomParty: { name: "P8" },
+    },
+    // Winners Round 2 (2 matches)
+    {
+      id: "w5",
+      name: "Winners R2 - Match 1",
+      numberOfRounds: 3,
+      topParty: null,
+      bottomParty: null,
+    },
+    {
+      id: "w6",
+      name: "Winners R2 - Match 2",
+      numberOfRounds: 3,
+      topParty: null,
+      bottomParty: null,
+    },
+    // Winners Final (Round 3) (1 match)
+    {
+      id: "w7",
+      name: "Winners Final",
+      numberOfRounds: 3,
+      topParty: null,
       bottomParty: null,
     },
   ],
+  // Losers bracket (lower): expected 3 matches.
+  // Losers Round 1: 2 matches, Losers Final: 1 match.
   lower: [
     {
-      id: "lower-m1",
-      name: "Match 1",
+      id: "l1",
+      name: "Losers R1 - Match 1",
       numberOfRounds: 3,
-      topParty: { name: "Team E" },
-      bottomParty: { name: "Team F" },
+      topParty: null,
+      bottomParty: null,
     },
     {
-      id: "lower-m2",
-      name: "Match 2",
+      id: "l2",
+      name: "Losers R1 - Match 2",
       numberOfRounds: 3,
-      topParty: { name: "Team G" },
-      bottomParty: { name: "Team H" },
+      topParty: null,
+      bottomParty: null,
     },
     {
-      id: "lower-m3",
-      name: "Lower Final",
+      id: "l3",
+      name: "Losers Final",
       numberOfRounds: 3,
-      topParty: null, // Teams to be determined from winners of Round 1
+      topParty: null,
       bottomParty: null,
     },
   ],

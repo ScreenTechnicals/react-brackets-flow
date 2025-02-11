@@ -41,9 +41,12 @@ type MyNodeData = MatchNodeData | RoundLabelData;
 // ----------------------------------------------------------------
 
 interface DoubleEliminationBracketFlowProps {
+  // The matches are provided as two flat arrays:
+  // - upper: winners bracket matches
+  // - lower: losers bracket matches
   matches: {
-    upper: Match[]; // winners bracket
-    lower: Match[]; // losers bracket
+    upper: Match[];
+    lower: Match[];
   };
 }
 
@@ -60,42 +63,19 @@ const RoundLabel = ({ data }: { data: RoundLabelData }) => {
 };
 
 // ----------------------------------------------------------------
-// Dynamically Generate Rounds from a Flat Matches Array
+// Helper: Split a flat matches array into rounds based on expected sizes
 // ----------------------------------------------------------------
 
-const generateRounds = (matchesArr: Match[]): Match[][] => {
-  // Special case: if there are exactly 3 matches,
-  // use the first 2 as Round 1 and the last as Final.
-  if (matchesArr.length === 3) {
-    return [matchesArr.slice(0, 2), matchesArr.slice(2)];
-  }
-
-  // Default logic: group matches with both teams defined as the first round,
-  // and matches with null teams as later rounds.
-  const firstRoundMatches: Match[] = [];
-  const laterMatches: Match[] = [];
-
-  matchesArr.forEach((match) => {
-    if (match.topParty && match.bottomParty) {
-      firstRoundMatches.push(match);
-    } else {
-      laterMatches.push(match);
-    }
-  });
-
+const splitMatchesIntoRounds = (
+  matches: Match[],
+  roundSizes: number[]
+): Match[][] => {
   const rounds: Match[][] = [];
-  rounds.push(firstRoundMatches);
-
-  let prevRoundCount = firstRoundMatches.length;
-  const remaining = [...laterMatches];
-
-  while (remaining.length > 0) {
-    const roundCount = Math.ceil(prevRoundCount / 2);
-    const roundMatches = remaining.splice(0, roundCount);
-    rounds.push(roundMatches);
-    prevRoundCount = roundMatches.length;
+  let start = 0;
+  for (const size of roundSizes) {
+    rounds.push(matches.slice(start, start + size));
+    start += size;
   }
-
   return rounds;
 };
 
@@ -103,7 +83,7 @@ const generateRounds = (matchesArr: Match[]): Match[][] => {
 // Layout Configuration
 // ----------------------------------------------------------------
 
-const labelY = 50; // fixed y coordinate for round labels (top row)
+const labelY = 50; // fixed y coordinate for the round labels (common for both brackets)
 const offsetForMatchNodes = 150; // vertical gap between round labels and match nodes
 const xSpacing = 400; // horizontal space between rounds
 const ySpacing = 200; // vertical space between match nodes
@@ -117,18 +97,16 @@ const computeBaseY = (rounds: Match[][]): number => {
 // ----------------------------------------------------------------
 // Generate Nodes for ReactFlow (Match Nodes)
 // ----------------------------------------------------------------
-// (Added an optional verticalOffset parameter for lower bracket adjustments.)
+// An optional verticalOffset parameter lets us position the lower bracket further down.
 const generateMatchNodes = (
   rounds: Match[][],
   baseY: number,
   verticalOffset: number = 0
 ): Node<MatchNodeData>[] => {
   const nodes: Node<MatchNodeData>[] = [];
-
   rounds.forEach((round, roundIndex) => {
     const totalMatches = round.length;
     const roundYOffset = baseY - ((totalMatches - 1) * ySpacing) / 2;
-
     round.forEach((match, matchIndex) => {
       nodes.push({
         id: match.id,
@@ -157,61 +135,54 @@ const generateMatchNodes = (
       });
     });
   });
-
   return nodes;
 };
 
 // ----------------------------------------------------------------
 // Generate Nodes for ReactFlow (Round Label Nodes)
 // ----------------------------------------------------------------
-// (Accepts verticalOffset to adjust the label positions for lower bracket.)
+// Only one set of round labels is generated (without a vertical offset).
 const generateRoundLabelNodes = (
   rounds: Match[][],
   verticalOffset: number = 0
 ): Node<RoundLabelData>[] => {
   const labelNodes: Node<RoundLabelData>[] = [];
-
   rounds.forEach((_, roundIndex) => {
     const label =
       roundIndex === rounds.length - 1 ? "Final" : `Round ${roundIndex + 1}`;
     labelNodes.push({
-      id: `round-label-${roundIndex}-${verticalOffset}`, // unique id per bracket
+      id: `round-label-${roundIndex}`,
       type: "label",
       position: {
         x: 100 + roundIndex * xSpacing,
-        y: labelY + verticalOffset, // adjusted by verticalOffset if needed
+        y: labelY + verticalOffset,
       },
       style: { zIndex: 999 },
       data: { label },
     });
   });
-
   return labelNodes;
 };
 
 // ----------------------------------------------------------------
-// Generate Edges for ReactFlow
+// Generate Edges for ReactFlow (within a bracket)
 // ----------------------------------------------------------------
-// (Also accepts verticalOffset to keep ids unique if necessary.)
+// This helper assumes that each round (after the first) has half as many matches as the previous round.
 const generateEdges = (
   rounds: Match[][],
   verticalOffset: number = 0
 ): Edge[] => {
   const edges: Edge[] = [];
-
   rounds.forEach((round, roundIndex) => {
-    if (roundIndex === 0) return; // no incoming edges for first round
-
+    if (roundIndex === 0) return; // first round has no incoming edges
     round.forEach((match, matchIndex) => {
       const prevRound = rounds[roundIndex - 1];
       if (!prevRound) return;
-
       const topSource = prevRound[matchIndex * 2]?.id;
       const bottomSource = prevRound[matchIndex * 2 + 1]?.id;
-
       if (topSource) {
         edges.push({
-          id: `${topSource}-${match.id}-${verticalOffset}`,
+          id: `${topSource}-${match.id}`,
           source: topSource,
           target: match.id,
           type: "smoothstep",
@@ -219,7 +190,7 @@ const generateEdges = (
       }
       if (bottomSource) {
         edges.push({
-          id: `${bottomSource}-${match.id}-${verticalOffset}`,
+          id: `${bottomSource}-${match.id}`,
           source: bottomSource,
           target: match.id,
           type: "smoothstep",
@@ -227,48 +198,107 @@ const generateEdges = (
       }
     });
   });
-
   return edges;
 };
 
 // ----------------------------------------------------------------
-// Main Component for Double Elimination Bracket Flow
+// Main Component: Double Elimination Bracket Flow
 // ----------------------------------------------------------------
 
 const DoubleEliminationBracketFlow: React.FC<
   DoubleEliminationBracketFlowProps
 > = ({ matches }) => {
-  // --- Upper Bracket (Winners) ---
-  const upperRounds = generateRounds(matches.upper);
-  const upperBaseY = computeBaseY(upperRounds);
-  const upperMatchNodes = generateMatchNodes(upperRounds, upperBaseY);
-  const upperRoundLabelNodes = generateRoundLabelNodes(upperRounds);
-  const upperEdges = generateEdges(upperRounds);
+  // For an 8-player tournament, define the expected round sizes.
+  // — Upper (winners) bracket sizes: 4 matches in R1, 2 in R2, 1 in winners final.
+  const winnersRoundSizes = [4, 2, 1];
+  // — Lower (losers) bracket sizes: 2 matches in R1, 1 in losers final.
+  const losersRoundSizes = [2, 1];
 
-  // --- Lower Bracket (Losers) ---
-  // Define an offset so the lower bracket appears further down.
-  const lowerBracketOffset = 600; // adjust this value to suit your layout
-  const lowerRounds = generateRounds(matches.lower);
-  const lowerBaseY = computeBaseY(lowerRounds); // compute without offset
+  const winnersRounds = splitMatchesIntoRounds(
+    matches.upper,
+    winnersRoundSizes
+  );
+  const losersRounds = splitMatchesIntoRounds(matches.lower, losersRoundSizes);
+
+  const winnersBaseY = computeBaseY(winnersRounds);
+  const losersBaseY = computeBaseY(losersRounds);
+  // Offset for positioning the lower bracket further down.
+  const lowerBracketOffset = 600;
+
+  const upperMatchNodes = generateMatchNodes(winnersRounds, winnersBaseY);
   const lowerMatchNodes = generateMatchNodes(
-    lowerRounds,
-    lowerBaseY,
+    losersRounds,
+    losersBaseY,
     lowerBracketOffset
   );
-  const lowerRoundLabelNodes = generateRoundLabelNodes(
-    lowerRounds,
-    lowerBracketOffset
-  );
-  const lowerEdges = generateEdges(lowerRounds, lowerBracketOffset);
 
-  // Combine nodes and edges from both brackets.
+  // Generate a single row of round labels (based on winnersRounds).
+  const roundLabelNodes = generateRoundLabelNodes(winnersRounds);
+
+  const upperEdges = generateEdges(winnersRounds);
+  const lowerEdges = generateEdges(losersRounds, lowerBracketOffset);
+
+  // --- Create the Grand Final Node ---
+  // We assume the grand final node is not part of the input and is placed to the right of both brackets.
+  const winnersFinalMatch = winnersRounds[winnersRounds.length - 1][0];
+  const losersFinalMatch = losersRounds[losersRounds.length - 1][0];
+
+  const winnersFinalX = 100 + (winnersRounds.length - 1) * xSpacing;
+  const winnersFinalY =
+    winnersBaseY -
+    ((winnersRounds[winnersRounds.length - 1].length - 1) * ySpacing) / 2;
+  const losersFinalX = 100 + (losersRounds.length - 1) * xSpacing;
+  const losersFinalY =
+    losersBaseY -
+    ((losersRounds[losersRounds.length - 1].length - 1) * ySpacing) / 2 +
+    lowerBracketOffset;
+
+  // Position the Grand Final node to the right of both finals.
+  const grandFinalX = Math.max(winnersFinalX, losersFinalX) + xSpacing;
+  const grandFinalY = (winnersFinalY + losersFinalY) / 2;
+
+  const grandFinalMatch: Match = {
+    id: "grand-final",
+    name: "Grand Final",
+    numberOfRounds: 1,
+    topParty: null,
+    bottomParty: null,
+  };
+
+  const grandFinalNode: Node<MatchNodeData> = {
+    id: grandFinalMatch.id,
+    type: "custom",
+    position: { x: grandFinalX, y: grandFinalY },
+    data: {
+      match: grandFinalMatch,
+      topParty: { name: "Winner (Upper Bracket)" },
+      bottomParty: { name: "Winner (Lower Bracket)" },
+    },
+  };
+
+  // Create edges from the winners final and losers final to the grand final.
+  const extraEdges: Edge[] = [
+    {
+      id: `edge-${winnersFinalMatch.id}-grand-final`,
+      source: winnersFinalMatch.id,
+      target: grandFinalMatch.id,
+      type: "smoothstep",
+    },
+    {
+      id: `edge-${losersFinalMatch.id}-grand-final`,
+      source: losersFinalMatch.id,
+      target: grandFinalMatch.id,
+      type: "smoothstep",
+    },
+  ];
+
   const nodes: Node<MyNodeData>[] = [
     ...upperMatchNodes,
-    ...upperRoundLabelNodes,
     ...lowerMatchNodes,
-    ...lowerRoundLabelNodes,
+    ...roundLabelNodes, // Only one row of round labels is rendered
+    grandFinalNode,
   ];
-  const edges: Edge[] = [...upperEdges, ...lowerEdges];
+  const edges: Edge[] = [...upperEdges, ...lowerEdges, ...extraEdges];
 
   return (
     <div className="w-full h-full flex items-center justify-center">
