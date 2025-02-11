@@ -1,7 +1,9 @@
 "use client";
 
-import { Match } from "@/components";
-import SingleEliminationBracketFlow from "@/components/single-elemination.component";
+import DoubleEliminationBracketFlow from "@/components/double-elemintaion.component";
+import SingleEliminationBracketFlow, {
+  Match,
+} from "@/components/single-elemination.component";
 import "@xyflow/react/dist/style.css";
 import Link from "next/link";
 import { useState } from "react";
@@ -168,6 +170,90 @@ const mockMatches: Match[] = [
   },
 ];
 
+const matches: Match[] = [
+  {
+    id: "ee5dacd3-e84c-4b03-a1f7-720ab2457e0e",
+    name: "Match 1",
+    numberOfRounds: 3,
+    topParty: {
+      name: "PanzeR",
+    },
+    bottomParty: {
+      name: "Cruze",
+    },
+  },
+  {
+    id: "8a9a5813-fc28-4814-adb2-959422382133",
+    name: "Match 2",
+    numberOfRounds: 3,
+    topParty: {
+      name: "Showdown Shogun",
+    },
+    bottomParty: {
+      name: "Cruze SHWDWN",
+    },
+  },
+  {
+    id: "982efd91-1e78-4474-9a1f-677d5ecda35a",
+    name: "Match 3",
+    numberOfRounds: 3,
+    topParty: {
+      name: "Cruze",
+    },
+    bottomParty: {
+      name: "Cruze SHWDWN",
+    },
+  },
+];
+
+const mockDoubleEliminationMatches = {
+  upper: [
+    {
+      id: "upper-m1",
+      name: "Match 1",
+      numberOfRounds: 3,
+      topParty: { name: "Team A" },
+      bottomParty: { name: "Team B" },
+    },
+    {
+      id: "upper-m2",
+      name: "Match 2",
+      numberOfRounds: 3,
+      topParty: { name: "Team C" },
+      bottomParty: { name: "Team D" },
+    },
+    {
+      id: "upper-m3",
+      name: "Upper Final",
+      numberOfRounds: 3,
+      topParty: null, // Teams to be determined from winners of Round 1
+      bottomParty: null,
+    },
+  ],
+  lower: [
+    {
+      id: "lower-m1",
+      name: "Match 1",
+      numberOfRounds: 3,
+      topParty: { name: "Team E" },
+      bottomParty: { name: "Team F" },
+    },
+    {
+      id: "lower-m2",
+      name: "Match 2",
+      numberOfRounds: 3,
+      topParty: { name: "Team G" },
+      bottomParty: { name: "Team H" },
+    },
+    {
+      id: "lower-m3",
+      name: "Lower Final",
+      numberOfRounds: 3,
+      topParty: null, // Teams to be determined from winners of Round 1
+      bottomParty: null,
+    },
+  ],
+};
 const Page = () => {
   const [isSingleElemination, setIsSingleElemination] = useState(true);
 
@@ -224,7 +310,9 @@ const Page = () => {
           {isSingleElemination ? (
             <SingleEliminationBracketFlow matches={mockMatches} />
           ) : (
-            "Double Elimination"
+            <DoubleEliminationBracketFlow
+              matches={mockDoubleEliminationMatches}
+            />
           )}
         </div>
       </div>

@@ -61,6 +61,13 @@ const RoundLabel = ({ data }: { data: RoundLabelData }) => {
 // ----------------------------------------------------------------
 
 const generateRounds = (matchesArr: Match[]): Match[][] => {
+  // Special case: if there are exactly 3 matches, use the first 2 as Round 1 and the last as Final.
+  if (matchesArr.length === 3) {
+    return [matchesArr.slice(0, 2), matchesArr.slice(2)];
+  }
+
+  // Default logic for mixed data (first round matches have defined teams,
+  // later rounds are matches with null teams).
   const firstRoundMatches: Match[] = [];
   const laterMatches: Match[] = [];
 
