@@ -1,29 +1,34 @@
 "use client";
-import MatchNode from "@/components/match";
+
 import type { Edge, Node } from "@xyflow/react";
 import { Controls, MiniMap, ReactFlow } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import React from "react";
+import MatchNode from "./match";
 
 // ----------------------------------------------------------------
 // Define Types
 // ----------------------------------------------------------------
 
-interface Party {
-  name: string;
+export interface Party {
+  name?: string;
+  id?: string;
+  resultText?: string;
 }
 
-export interface Match {
+export interface MatchType {
   id: string;
   name: string;
   topParty: Party | null;
-  numberOfRounds: number;
+  numberOfRounds?: number;
   bottomParty: Party | null;
+  scoreMapping?: any;
+  state?: any;
 }
 
 // Extend MatchNodeData so it satisfies Record<string, unknown>
 interface MatchNodeData extends Record<string, unknown> {
-  match: Match;
+  match: MatchType;
   topParty: Party;
   bottomParty: Party;
 }
@@ -41,7 +46,7 @@ type MyNodeData = MatchNodeData | RoundLabelData;
 // ----------------------------------------------------------------
 
 interface BracketFlowProps {
-  matches: Match[];
+  matches: MatchType[];
 }
 
 // ----------------------------------------------------------------
@@ -50,7 +55,7 @@ interface BracketFlowProps {
 
 const RoundLabel = ({ data }: { data: RoundLabelData }) => {
   return (
-    <div className="p-2 bg-blue-500 text-white font-bold rounded shadow">
+    <div className="p-2 font-bold text-white bg-blue-500 rounded shadow">
       {data.label}
     </div>
   );
@@ -60,36 +65,22 @@ const RoundLabel = ({ data }: { data: RoundLabelData }) => {
 // Dynamically Generate Rounds from the Flat Matches Array
 // ----------------------------------------------------------------
 
-const generateRounds = (matchesArr: Match[]): Match[][] => {
-  // Special case: if there are exactly 3 matches, use the first 2 as Round 1 and the last as Final.
-  if (matchesArr.length === 3) {
-    return [matchesArr.slice(0, 2), matchesArr.slice(2)];
+const generateRounds = (matchesArr: MatchType[]): MatchType[][] => {
+  const totalMatches = matchesArr.length;
+  const totalTeams = totalMatches + 1;
+  const roundsCount = Math.log2(totalTeams);
+
+  if (!Number.isInteger(roundsCount)) {
+    console.warn("Bracket is not a complete single-elimination bracket.");
+    return [matchesArr];
   }
 
-  // Default logic for mixed data (first round matches have defined teams,
-  // later rounds are matches with null teams).
-  const firstRoundMatches: Match[] = [];
-  const laterMatches: Match[] = [];
-
-  matchesArr.forEach((match) => {
-    if (match.topParty && match.bottomParty) {
-      firstRoundMatches.push(match);
-    } else {
-      laterMatches.push(match);
-    }
-  });
-
-  const rounds: Match[][] = [];
-  rounds.push(firstRoundMatches);
-
-  let prevRoundCount = firstRoundMatches.length;
-  let remaining = [...laterMatches];
-
-  while (remaining.length > 0) {
-    const roundCount = Math.ceil(prevRoundCount / 2);
-    const roundMatches = remaining.splice(0, roundCount);
-    rounds.push(roundMatches);
-    prevRoundCount = roundMatches.length;
+  const rounds: MatchType[][] = [];
+  let index = 0;
+  for (let round = 0; round < roundsCount; round++) {
+    const matchesInRound = totalTeams / Math.pow(2, round + 1);
+    rounds.push(matchesArr.slice(index, index + matchesInRound));
+    index += matchesInRound;
   }
 
   return rounds;
@@ -105,7 +96,7 @@ const xSpacing = 400; // horizontal space between rounds
 const ySpacing = 200; // vertical space between match nodes
 
 // Compute a dynamic baseY for match nodes based on the maximum number of matches in any round.
-const computeBaseY = (rounds: Match[][]): number => {
+const computeBaseY = (rounds: MatchType[][]): number => {
   const maxMatches = Math.max(...rounds.map((round) => round.length));
   return labelY + offsetForMatchNodes + ((maxMatches - 1) * ySpacing) / 2;
 };
@@ -115,7 +106,7 @@ const computeBaseY = (rounds: Match[][]): number => {
 // ----------------------------------------------------------------
 
 const generateMatchNodes = (
-  rounds: Match[][],
+  rounds: MatchType[][],
   baseY: number
 ): Node<MatchNodeData>[] => {
   const nodes: Node<MatchNodeData>[] = [];
@@ -160,7 +151,9 @@ const generateMatchNodes = (
 // Generate Nodes for ReactFlow (Round Label Nodes)
 // ----------------------------------------------------------------
 
-const generateRoundLabelNodes = (rounds: Match[][]): Node<RoundLabelData>[] => {
+const generateRoundLabelNodes = (
+  rounds: MatchType[][]
+): Node<RoundLabelData>[] => {
   const labelNodes: Node<RoundLabelData>[] = [];
 
   rounds.forEach((_, roundIndex) => {
@@ -185,7 +178,7 @@ const generateRoundLabelNodes = (rounds: Match[][]): Node<RoundLabelData>[] => {
 // Generate Edges for ReactFlow
 // ----------------------------------------------------------------
 
-const generateEdges = (rounds: Match[][]): Edge[] => {
+const generateEdges = (rounds: MatchType[][]): Edge[] => {
   const edges: Edge[] = [];
 
   rounds.forEach((round, roundIndex) => {
@@ -237,33 +230,33 @@ const SingleEliminationBracketFlow: React.FC<BracketFlowProps> = ({
   const edges = generateEdges(rounds);
 
   return (
-    <div className="w-full h-full flex items-center justify-center">
+    <div className="flex justify-center items-center w-full h-full">
       <ReactFlow
-        nodes={nodes}
+        fitView
         edges={edges}
         nodeTypes={{ custom: MatchNode, label: RoundLabel }}
-        fitView
+        nodes={nodes}
       >
         {/* <Background /> */}
         <MiniMap
-          nodeStrokeColor={(node: Node<MyNodeData>) => {
-            if (node.type === "custom") return "#0041d0";
-            if (node.type === "label") return "#ff0072";
-            return "#eee";
-          }}
+          nodeBorderRadius={2}
           nodeColor={(node: Node<MyNodeData>) => {
             if (node.type === "custom") return "#0041d0";
             if (node.type === "label") return "#ff0072";
             return "#fff";
           }}
-          nodeBorderRadius={2}
+          nodeStrokeColor={(node: Node<MyNodeData>) => {
+            if (node.type === "custom") return "#0041d0";
+            if (node.type === "label") return "#ff0072";
+            return "#eee";
+          }}
         />
         <Controls
-          showInteractive={false}
-          style={{ color: "#000" }}
           fitViewOptions={{
             padding: 0.3,
           }}
+          showInteractive={false}
+          style={{ color: "#000" }}
         />
       </ReactFlow>
     </div>
