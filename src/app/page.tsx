@@ -1,15 +1,15 @@
 "use client";
 
-import DoubleEliminationBracketFlow from "@/components/double-elemintaion.component";
-import SingleEliminationBracketFlow, {
+import TournamentBracket, {
   Match,
-} from "@/components/single-elemination.component";
+} from "@/components/double-elemintaion.component";
+import SingleEliminationBracketFlow from "@/components/single-elemination.component";
 import "@xyflow/react/dist/style.css";
 import Link from "next/link";
 import { useState } from "react";
 import { twJoin } from "tailwind-merge";
 
-const mockMatches: Match[] = [
+const mockMatches = [
   // First round matches (6 matches with defined teams)
   {
     id: "m1",
@@ -289,6 +289,54 @@ const mockDoubleEliminationMatches = {
     },
   ],
 };
+
+const matchesData: Match[] = [
+  // Winners Bracket - Round 1
+  {
+    id: "winners-r1-match-0",
+    round: "winners-r1",
+    teams: ["Team A", "Team B"],
+    matchIndex: 0,
+  },
+  {
+    id: "winners-r1-match-1",
+    round: "winners-r1",
+    teams: ["Team C", "Team D"],
+    matchIndex: 1,
+  },
+
+  // Winners Bracket - Semifinals
+  {
+    id: "winners-semis-match",
+    round: "winners-semis",
+    teams: [null, null],
+    matchIndex: 0,
+  },
+
+  // Losers Bracket - Round 1
+  {
+    id: "losers-r1-match",
+    round: "losers-r1",
+    teams: [null, null],
+    matchIndex: 0,
+  },
+
+  // Losers Bracket - Finals
+  {
+    id: "losers-finals-match",
+    round: "losers-finals",
+    teams: [null, null],
+    matchIndex: 0,
+  },
+
+  // Grand Finals
+  {
+    id: "grand-finals-match",
+    round: "grand-finals",
+    teams: [null, null],
+    matchIndex: 0,
+  },
+];
 const Page = () => {
   const [isSingleElemination, setIsSingleElemination] = useState(true);
 
@@ -341,13 +389,14 @@ const Page = () => {
         </p>
       </div>
       <div className="w-full h-full flex items-center justify-center">
-        <div className="w-[80%] h-[60dvh] bg-black shadow-black/40 shadow-md">
+        <div className="w-full h-full bg-black shadow-black/40 shadow-md">
           {isSingleElemination ? (
             <SingleEliminationBracketFlow matches={mockMatches} />
           ) : (
-            <DoubleEliminationBracketFlow
-              matches={mockDoubleEliminationMatches}
-            />
+            // <DoubleEliminationBracketFlow
+            //   matches={mockDoubleEliminationMatches}
+            // />
+            <TournamentBracket />
           )}
         </div>
       </div>
