@@ -1,6 +1,6 @@
 "use client";
 
-import TournamentBracket, {
+import DoubleEliminationBracketFlow, {
   Match,
 } from "@/components/double-elemintaion.component";
 import SingleEliminationBracketFlow from "@/components/single-elemination.component";
@@ -396,7 +396,9 @@ const Page = () => {
             // <DoubleEliminationBracketFlow
             //   matches={mockDoubleEliminationMatches}
             // />
-            <TournamentBracket />
+            <DoubleEliminationBracketFlow
+              matches={mockDoubleEliminationMatches}
+            />
           )}
         </div>
       </div>

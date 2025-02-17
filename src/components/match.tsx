@@ -1,3 +1,4 @@
+// MatchNode.tsx
 import { Handle, Position } from "@xyflow/react";
 import React, { useCallback } from "react";
 
@@ -9,6 +10,7 @@ interface MatchNodeProps {
       state: string;
       numberOfRounds: number;
       name?: string;
+      round: string; // e.g. "upper-r1", "lower-finals", etc.
     };
     topParty: { name: string } | null;
     bottomParty: { name: string } | null;
@@ -28,7 +30,7 @@ const MatchNode: React.FC<MatchNodeProps> = ({ data }) => {
     bottomHovered,
     teamNameFallback,
   } = data;
-  const { state, numberOfRounds, name } = match;
+  const { state, numberOfRounds, name, round } = match;
   const hasMatchData = !!state;
 
   const onInfoMouseEnter = useCallback(
@@ -90,7 +92,7 @@ const MatchNode: React.FC<MatchNodeProps> = ({ data }) => {
         {bottomParty?.name || teamNameFallback}
       </div>
 
-      {/* Match Name */}
+      {/* Optional: If you want to also show a match-specific name at the bottom */}
       {name && (
         <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 text-gray-400 text-xs">
           {name}

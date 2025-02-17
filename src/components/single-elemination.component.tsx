@@ -4,7 +4,7 @@ import type { Edge, Node } from "@xyflow/react";
 import { Controls, MiniMap, ReactFlow } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import React from "react";
-import MatchNode from "./match";
+import Match from "./match";
 
 // ----------------------------------------------------------------
 // Define Types
@@ -12,7 +12,7 @@ import MatchNode from "./match";
 
 export interface Party {
   name?: string;
-  id?: string;
+  id: string;
   resultText?: string;
 }
 
@@ -23,7 +23,7 @@ export interface MatchType {
   numberOfRounds?: number;
   bottomParty: Party | null;
   scoreMapping?: any;
-  state?: any;
+  state: any;
 }
 
 // Extend MatchNodeData so it satisfies Record<string, unknown>
@@ -234,7 +234,7 @@ const SingleEliminationBracketFlow: React.FC<BracketFlowProps> = ({
       <ReactFlow
         fitView
         edges={edges}
-        nodeTypes={{ custom: MatchNode, label: RoundLabel }}
+        nodeTypes={{ custom: Match, label: RoundLabel }}
         nodes={nodes}
       >
         {/* <Background /> */}

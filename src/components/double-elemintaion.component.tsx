@@ -1,478 +1,366 @@
-import {
-  Background,
-  Controls,
-  Edge,
-  Handle,
-  MiniMap,
-  Node,
-  Position,
-  ReactFlow,
-  XYPosition,
-} from "@xyflow/react";
-import React, { useState } from "react";
+"use client";
 
-// -----------------------
-// Type Definitions
-// -----------------------
+import type { Edge, Node } from "@xyflow/react";
+import { Controls, MiniMap, ReactFlow } from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
+import React from "react";
+import Match from "./match";
 
-interface CustomNodeData extends Record<string, unknown> {
-  teams: (string | null)[];
-  winner: string | null;
-  round: string;
-  matchIndex: number;
-  onTeamClick: (teamIndex: number) => void;
-}
+// ----------------------------------------------------------------
+// Define Types
+// ----------------------------------------------------------------
 
-interface Match {
+export interface Party {
+  name?: string;
   id: string;
-  round: string;
-  teams: (string | null)[];
-  matchIndex: number;
-  winner?: string | null;
+  resultText?: string;
 }
 
-interface ConnectionData {
-  source: string;
-  target: string;
-  animated?: boolean;
+export interface MatchType {
+  id: string;
+  name: string;
+  topParty: Party | null;
+  numberOfRounds?: number;
+  bottomParty: Party | null;
+  scoreMapping?: any;
+  state: any;
 }
 
-interface GroupSetting {
-  top: number;
-  height: number;
+// Extend MatchNodeData so it satisfies Record<string, unknown>
+interface MatchNodeData extends Record<string, unknown> {
+  match: MatchType;
+  topParty: Party;
+  bottomParty: Party;
 }
 
-interface NextMapping {
-  nextRound: string;
-  appendIndex: boolean;
+// Update RoundLabelData so it also extends Record<string, unknown>
+interface RoundLabelData extends Record<string, unknown> {
+  label: string;
 }
 
-// -----------------------
-// Custom Node Component
-// -----------------------
+// Create a union type for node data
+type MyNodeData = MatchNodeData | RoundLabelData;
 
-export const MatchNode: React.FC<{ data: CustomNodeData }> = ({ data }) => {
-  const { teams, winner, onTeamClick } = data;
+// ----------------------------------------------------------------
+// Component Props
+// ----------------------------------------------------------------
+
+export interface BracketFlowProps {
+  // For single elimination, you pass an array of matches.
+  // For double elimination, you pass an object with upper and lower arrays.
+  matches: MatchType[] | { upper: MatchType[]; lower: MatchType[] };
+}
+
+// ----------------------------------------------------------------
+// Round Label Node Component with Custom CSS
+// ----------------------------------------------------------------
+
+const RoundLabel = ({ data }: { data: RoundLabelData }) => {
   return (
-    <div
-      className="border text-black rounded p-2 cursor-pointer bg-white shadow-sm hover:shadow-md transition-shadow"
-      style={{ width: 150 }}
-    >
-      <Handle
-        type="source"
-        position={Position.Right}
-        className="w-2 h-2 bg-gray-500"
-      />
-      <Handle
-        type="target"
-        position={Position.Left}
-        className="w-2 h-2 bg-gray-500"
-      />
-      {teams.map((team, index) => (
-        <div
-          key={index}
-          className={`p-1 ${
-            winner === team ? "font-bold text-green-600" : ""
-          } ${!team ? "text-gray-400" : ""}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            onTeamClick(index);
-          }}
-        >
-          {team || "TBD"}
-        </div>
-      ))}
-    </div>
+    <div className="p-2 font-bold text-white">{data.label || "Round"}</div>
   );
 };
 
-const nodeTypes = { matchNode: MatchNode };
+// ----------------------------------------------------------------
+// Helper Functions (Same as Single Elimination)
+// ----------------------------------------------------------------
 
-// -----------------------
-// Data and Mappings
-// -----------------------
+const generateRounds = (matchesArr: MatchType[]): MatchType[][] => {
+  const totalMatches = matchesArr.length;
+  const totalTeams = totalMatches + 1;
+  const roundsCount = Math.log2(totalTeams);
 
-// Sample matches data for a 16-team bracket.
-// In some matches a "BYE" represents a walkover.
-const matchesData: Match[] = [
-  // Winners Bracket – Round 1 (8 matches)
-  {
-    id: "winners-r1-match-0",
-    round: "winners-r1",
-    teams: ["T1", "T2"],
-    matchIndex: 0,
-  },
-  {
-    id: "winners-r1-match-1",
-    round: "winners-r1",
-    teams: ["T3", "T4"],
-    matchIndex: 1,
-  },
-  {
-    id: "winners-r1-match-2",
-    round: "winners-r1",
-    teams: ["T5", "BYE"],
-    matchIndex: 2,
-  },
-  {
-    id: "winners-r1-match-3",
-    round: "winners-r1",
-    teams: ["T7", "T8"],
-    matchIndex: 3,
-  },
-  {
-    id: "winners-r1-match-4",
-    round: "winners-r1",
-    teams: ["T9", "T10"],
-    matchIndex: 4,
-  },
-  {
-    id: "winners-r1-match-5",
-    round: "winners-r1",
-    teams: ["T11", "T12"],
-    matchIndex: 5,
-  },
-  {
-    id: "winners-r1-match-6",
-    round: "winners-r1",
-    teams: ["T13", "T14"],
-    matchIndex: 6,
-  },
-  {
-    id: "winners-r1-match-7",
-    round: "winners-r1",
-    teams: ["T15", "T16"],
-    matchIndex: 7,
-  },
-
-  // Winners Bracket – Round 2 (4 matches)
-  {
-    id: "winners-r2-match-0",
-    round: "winners-r2",
-    teams: [null, null],
-    matchIndex: 0,
-  },
-  {
-    id: "winners-r2-match-1",
-    round: "winners-r2",
-    teams: [null, null],
-    matchIndex: 1,
-  },
-  {
-    id: "winners-r2-match-2",
-    round: "winners-r2",
-    teams: [null, null],
-    matchIndex: 2,
-  },
-  {
-    id: "winners-r2-match-3",
-    round: "winners-r2",
-    teams: [null, null],
-    matchIndex: 3,
-  },
-
-  // Winners Bracket – Semifinals (2 matches)
-  {
-    id: "winners-semis-match-0",
-    round: "winners-semis",
-    teams: [null, null],
-    matchIndex: 0,
-  },
-  {
-    id: "winners-semis-match-1",
-    round: "winners-semis",
-    teams: [null, null],
-    matchIndex: 1,
-  },
-
-  // Winners Bracket – Finals (1 match)
-  {
-    id: "winners-finals-match",
-    round: "winners-finals",
-    teams: [null, null],
-    matchIndex: 0,
-  },
-
-  // Losers Bracket – Round 1 (4 matches)
-  {
-    id: "losers-r1-match-0",
-    round: "losers-r1",
-    teams: [null, null],
-    matchIndex: 0,
-  },
-  {
-    id: "losers-r1-match-1",
-    round: "losers-r1",
-    teams: [null, null],
-    matchIndex: 1,
-  },
-  {
-    id: "losers-r1-match-2",
-    round: "losers-r1",
-    teams: [null, null],
-    matchIndex: 2,
-  },
-  {
-    id: "losers-r1-match-3",
-    round: "losers-r1",
-    teams: [null, null],
-    matchIndex: 3,
-  },
-
-  // Losers Bracket – Round 2 (4 matches)
-  {
-    id: "losers-r2-match-0",
-    round: "losers-r2",
-    teams: [null, null],
-    matchIndex: 0,
-  },
-  {
-    id: "losers-r2-match-1",
-    round: "losers-r2",
-    teams: [null, null],
-    matchIndex: 1,
-  },
-  {
-    id: "losers-r2-match-2",
-    round: "losers-r2",
-    teams: [null, null],
-    matchIndex: 2,
-  },
-  {
-    id: "losers-r2-match-3",
-    round: "losers-r2",
-    teams: [null, null],
-    matchIndex: 3,
-  },
-
-  // Losers Bracket – Round 3 (2 matches)
-  {
-    id: "losers-r3-match-0",
-    round: "losers-r3",
-    teams: [null, null],
-    matchIndex: 0,
-  },
-  {
-    id: "losers-r3-match-1",
-    round: "losers-r3",
-    teams: [null, null],
-    matchIndex: 1,
-  },
-
-  // Losers Bracket – Semifinals (1 match)
-  {
-    id: "losers-semis-match",
-    round: "losers-semis",
-    teams: [null, null],
-    matchIndex: 0,
-  },
-
-  // Losers Bracket – Finals (1 match)
-  {
-    id: "losers-finals-match",
-    round: "losers-finals",
-    teams: [null, null],
-    matchIndex: 0,
-  },
-
-  // Grand Finals (1 match)
-  {
-    id: "grand-finals-match",
-    round: "grand-finals",
-    teams: [null, null],
-    matchIndex: 0,
-  },
-];
-
-// Map each round to a column index for horizontal positioning.
-const unifiedMapping: { [round: string]: number } = {
-  "winners-r1": 0,
-  "winners-r2": 1,
-  "winners-semis": 2,
-  "winners-finals": 3,
-  "losers-r1": 0,
-  "losers-r2": 1,
-  "losers-r3": 2,
-  "losers-semis": 3,
-  "losers-finals": 4,
-  "grand-finals": 5,
-};
-
-// Define vertical group settings (adjusted for increased y spacing).
-const groupSettings: { [group: string]: GroupSetting } = {
-  winners: { top: 50, height: 800 },
-  losers: { top: 900, height: 800 },
-  "grand-finals": { top: 400, height: 800 },
-};
-
-const getGroup = (round: string): string => {
-  if (round.startsWith("winners")) return "winners";
-  if (round.startsWith("losers")) return "losers";
-  if (round === "grand-finals") return "grand-finals";
-  return "winners";
-};
-
-// Helper: if one team is "BYE", auto-assign the other team as the winner.
-const autoAssignWinner = (teams: (string | null)[]): string | null => {
-  if (teams[0] === "BYE" && teams[1] && teams[1] !== "BYE") return teams[1]!;
-  if (teams[1] === "BYE" && teams[0] && teams[0] !== "BYE") return teams[0]!;
-  return null;
-};
-
-// -----------------------
-// Main Component
-// -----------------------
-
-const TournamentBracketFlow: React.FC = () => {
-  const horizontalSpacing = 300;
-
-  // Count matches per round for vertical spacing.
-  const roundMatchCounts: { [round: string]: number } = matchesData.reduce(
-    (acc, match) => {
-      acc[match.round] = (acc[match.round] || 0) + 1;
-      return acc;
-    },
-    {} as { [round: string]: number }
-  );
-
-  // Calculate node position based on its round and index.
-  const calculatePosition = (match: Match): XYPosition => {
-    const group = getGroup(match.round);
-    const settings = groupSettings[group];
-    const col = unifiedMapping[match.round] ?? 0;
-    const x = col * horizontalSpacing;
-    const totalMatches = roundMatchCounts[match.round];
-    const gap = settings.height / (totalMatches + 1);
-    const y = settings.top + (match.matchIndex + 1) * gap;
-    return { x, y };
-  };
-
-  // ------------------------------------------------------------------
-  // Declare helper functions as function declarations (hoisted)
-  // ------------------------------------------------------------------
-
-  function updateNodeData(
-    nodeId: string,
-    newData:
-      | Partial<CustomNodeData>
-      | ((prev: CustomNodeData) => Partial<CustomNodeData>)
-  ): void {
-    setNodes((nds) =>
-      nds.map((node) => {
-        if (node.id === nodeId) {
-          const updatedData =
-            typeof newData === "function" ? newData(node.data) : newData;
-          return { ...node, data: { ...node.data, ...updatedData } };
-        }
-        return node;
-      })
-    );
+  if (!Number.isInteger(roundsCount)) {
+    console.warn("Bracket is not a complete single-elimination bracket.");
+    return [matchesArr];
   }
 
-  function handleTeamClick(nodeId: string, teamIndex: number): void {
-    setNodes((nds) =>
-      nds.map((node) => {
-        if (node.id === nodeId) {
-          const newWinner = node.data.teams[teamIndex];
-          return { ...node, data: { ...node.data, winner: newWinner } };
-        }
-        return node;
-      })
-    );
-    const clickedNode = nodes.find((node) => node.id === nodeId);
-    if (!clickedNode) return;
-    const { round, teams, matchIndex } = clickedNode.data;
-    const newWinner = teams[teamIndex];
-    if (round === "winners-r1") {
-      const winnersRound2Index = Math.floor(matchIndex / 2);
-      const winnersRound2Id = `winners-r2-match-${winnersRound2Index}`;
-      updateNodeData(winnersRound2Id, (prev) => {
-        const updatedTeams = prev.teams.map((team) =>
-          team === null ? newWinner : team
-        );
-        return { teams: updatedTeams };
-      });
-      const losersRound1Id = `losers-r1-match-${winnersRound2Index}`;
-      const loser = teams.find((t, idx) => idx !== teamIndex) ?? null;
-      updateNodeData(losersRound1Id, { teams: [loser, null] });
-    }
+  const rounds: MatchType[][] = [];
+  let index = 0;
+  for (let round = 0; round < roundsCount; round++) {
+    const matchesInRound = totalTeams / Math.pow(2, round + 1);
+    rounds.push(matchesArr.slice(index, index + matchesInRound));
+    index += matchesInRound;
   }
 
-  // ------------------------------------------------------------------
-  // Generate state for nodes and edges
-  // ------------------------------------------------------------------
+  return rounds;
+};
 
-  const [nodes, setNodes] = useState<Node<CustomNodeData>[]>(() =>
-    matchesData.map((match) => {
-      let winner = match.winner ?? null;
-      const byeWinner = autoAssignWinner(match.teams);
-      if (!winner && byeWinner) {
-        winner = byeWinner;
-      }
-      const pos = calculatePosition(match);
-      return {
+const labelY = 50; // fixed y coordinate for round labels (top row)
+const offsetForMatchNodes = 150; // vertical gap between round labels and match nodes
+const xSpacing = 400; // horizontal space between rounds
+const ySpacing = 200; // vertical space between match nodes
+
+const computeBaseY = (rounds: MatchType[][]): number => {
+  const maxMatches = Math.max(...rounds.map((round) => round.length));
+  return labelY + offsetForMatchNodes + ((maxMatches - 1) * ySpacing) / 2;
+};
+
+const generateMatchNodes = (
+  rounds: MatchType[][],
+  baseY: number
+): Node<MatchNodeData>[] => {
+  const nodes: Node<MatchNodeData>[] = [];
+
+  rounds.forEach((round, roundIndex) => {
+    const totalMatches = round.length;
+    const roundYOffset = baseY - ((totalMatches - 1) * ySpacing) / 2;
+
+    round.forEach((match, matchIndex) => {
+      nodes.push({
         id: match.id,
-        type: "matchNode",
-        position: pos,
-        data: {
-          teams: match.teams,
-          winner: winner,
-          round: match.round,
-          matchIndex: match.matchIndex,
-          onTeamClick: (teamIndex: number) =>
-            handleTeamClick(match.id, teamIndex),
+        type: "custom",
+        position: {
+          x: 100 + roundIndex * xSpacing,
+          y: roundYOffset + matchIndex * ySpacing,
         },
-      };
-    })
-  );
+        data: {
+          match,
+          topParty:
+            match.topParty ||
+            ({
+              name: `Winner ${
+                rounds[roundIndex - 1]?.[matchIndex * 2]?.id || "TBD"
+              }`,
+            } as Party),
+          bottomParty:
+            match.bottomParty ||
+            ({
+              name: `Winner ${
+                rounds[roundIndex - 1]?.[matchIndex * 2 + 1]?.id || "TBD"
+              }`,
+            } as Party),
+        },
+      });
+    });
+  });
 
-  // Mapping from a round to its next round for edge generation.
-  const nextMapping: { [round: string]: NextMapping } = {
-    "winners-r1": { nextRound: "winners-r2", appendIndex: true },
-    "winners-r2": { nextRound: "winners-semis", appendIndex: true },
-    "winners-semis": { nextRound: "winners-finals", appendIndex: false },
-    "winners-finals": { nextRound: "grand-finals", appendIndex: false },
-    "losers-r1": { nextRound: "losers-r2", appendIndex: true },
-    "losers-r2": { nextRound: "losers-r3", appendIndex: true },
-    "losers-r3": { nextRound: "losers-semis", appendIndex: false },
-    "losers-semis": { nextRound: "losers-finals", appendIndex: false },
-    "losers-finals": { nextRound: "grand-finals", appendIndex: false },
+  return nodes;
+};
+
+const generateRoundLabelNodes = (
+  rounds: MatchType[][]
+): Node<RoundLabelData>[] => {
+  return rounds.map((_, roundIndex) => ({
+    id: `round-label-${roundIndex}`,
+    type: "label",
+    position: {
+      x: 100 + roundIndex * xSpacing,
+      y: labelY,
+    },
+    data: {
+      label:
+        roundIndex === rounds.length - 1 ? "Final" : `Round ${roundIndex + 1}`,
+    },
+  }));
+};
+
+const generateEdges = (rounds: MatchType[][]): Edge[] => {
+  const edges: Edge[] = [];
+
+  rounds.forEach((round, roundIndex) => {
+    if (roundIndex === 0) return; // No incoming edges for the first round.
+
+    round.forEach((match, matchIndex) => {
+      const prevRound = rounds[roundIndex - 1];
+      if (!prevRound) return;
+
+      const topSource = prevRound[matchIndex * 2]?.id;
+      const bottomSource = prevRound[matchIndex * 2 + 1]?.id;
+
+      if (topSource) {
+        edges.push({
+          id: `${topSource}-${match.id}`,
+          source: topSource,
+          target: match.id,
+          type: "smoothstep",
+        });
+      }
+      if (bottomSource) {
+        edges.push({
+          id: `${bottomSource}-${match.id}`,
+          source: bottomSource,
+          target: match.id,
+          type: "smoothstep",
+        });
+      }
+    });
+  });
+
+  return edges;
+};
+
+// ----------------------------------------------------------------
+// Main Component: DoubleEliminationBracketFlow
+// ----------------------------------------------------------------
+
+const DoubleEliminationBracketFlow: React.FC<BracketFlowProps> = ({
+  matches,
+}) => {
+  // Check if we received double elimination data
+  const isDoubleElimination =
+    typeof matches === "object" && "upper" in matches && "lower" in matches;
+
+  // If not, fall back to single elimination view.
+  if (!isDoubleElimination) {
+    return <SingleEliminationBracketFlow matches={matches} />;
+  }
+
+  // Destructure upper and lower matches
+  const { upper, lower } = matches as {
+    upper: MatchType[];
+    lower: MatchType[];
   };
 
-  // Generate one outgoing edge per match (if a next round exists).
-  const connectionsData: ConnectionData[] = matchesData.reduce(
-    (edges, match) => {
-      if (nextMapping[match.round] !== undefined) {
-        const mapping = nextMapping[match.round];
-        const targetId = mapping.appendIndex
-          ? `${mapping.nextRound}-match-${Math.floor(match.matchIndex / 2)}`
-          : `${mapping.nextRound}-match`;
-        edges.push({ source: match.id, target: targetId, animated: true });
-      }
-      return edges;
-    },
-    [] as ConnectionData[]
+  // ---------------------------
+  // Upper Bracket
+  // ---------------------------
+  const upperRounds = generateRounds(upper);
+  const upperBaseY = computeBaseY(upperRounds);
+  const upperMatchNodes = generateMatchNodes(upperRounds, upperBaseY);
+  const upperLabelNodes = generateRoundLabelNodes(upperRounds);
+  const upperEdges = generateEdges(upperRounds);
+
+  // Determine the bottom-most y position in the upper bracket to offset the lower bracket
+  const upperNodesCombined = [...upperMatchNodes, ...upperLabelNodes];
+  const upperMaxY = Math.max(
+    ...upperNodesCombined.map((node) => node.position.y)
   );
 
-  const [edges, setEdges] = useState<Edge[]>(() =>
-    connectionsData.map((conn, index) => ({
-      id: `edge-${index}`,
-      source: conn.source,
-      target: conn.target,
-      animated: conn.animated || false,
-      type: "step",
-    }))
-  );
+  // ---------------------------
+  // Lower Bracket
+  // ---------------------------
+  const lowerRounds = generateRounds(lower);
+  const lowerBaseY = computeBaseY(lowerRounds);
+  const lowerMatchNodesUnshifted = generateMatchNodes(lowerRounds, lowerBaseY);
+  const lowerLabelNodesUnshifted = generateRoundLabelNodes(lowerRounds);
+  const lowerEdges = generateEdges(lowerRounds);
+
+  // Apply vertical offset to lower bracket nodes to place them below the upper bracket.
+  const lowerYOffset = upperMaxY + 200; // adjust this value for spacing between brackets
+
+  const lowerMatchNodes = lowerMatchNodesUnshifted.map((node) => ({
+    ...node,
+    position: { ...node.position, y: node.position.y + lowerYOffset },
+  }));
+  const lowerLabelNodes = lowerLabelNodesUnshifted.map((node) => ({
+    ...node,
+    position: { ...node.position, y: node.position.y + lowerYOffset },
+  }));
+
+  // ---------------------------
+  // Optionally, add overall bracket labels (Upper/Lower)
+  // ---------------------------
+  const overallUpperLabel: Node<RoundLabelData> = {
+    id: "overall-upper-label",
+    type: "label",
+    position: { x: 20, y: 10 },
+    data: { label: "Upper Bracket" },
+  };
+
+  const overallLowerLabel: Node<RoundLabelData> = {
+    id: "overall-lower-label",
+    type: "label",
+    position: { x: 20, y: lowerYOffset - 40 },
+    data: { label: "Lower Bracket" },
+  };
+
+  // ---------------------------
+  // Combine Nodes & Edges
+  // ---------------------------
+  const nodes: Node<MyNodeData>[] = [
+    ...upperMatchNodes,
+    ...upperLabelNodes,
+    ...lowerMatchNodes,
+    ...lowerLabelNodes,
+    overallUpperLabel,
+    overallLowerLabel,
+  ];
+  const edges: Edge[] = [...upperEdges, ...lowerEdges];
 
   return (
-    <div className="w-full h-full">
-      <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} fitView>
-        <MiniMap />
-        <Controls />
-        <Background color="#aaa" gap={16} />
+    <div className="flex justify-center items-center w-full h-full">
+      <ReactFlow
+        fitView
+        nodes={nodes}
+        edges={edges}
+        nodeTypes={{ custom: Match, label: RoundLabel }}
+      >
+        <MiniMap
+          nodeBorderRadius={2}
+          nodeColor={(node: Node<MyNodeData>) => {
+            if (node.type === "custom") return "#0041d0";
+            if (node.type === "label") return "#ff0072";
+            return "#fff";
+          }}
+          nodeStrokeColor={(node: Node<MyNodeData>) => {
+            if (node.type === "custom") return "#0041d0";
+            if (node.type === "label") return "#ff0072";
+            return "#eee";
+          }}
+        />
+        <Controls
+          fitViewOptions={{
+            padding: 0.3,
+          }}
+          showInteractive={false}
+          style={{ color: "#000" }}
+        />
       </ReactFlow>
     </div>
   );
 };
 
-export default TournamentBracketFlow;
+// ----------------------------------------------------------------
+// Fallback Single Elimination Component (Existing Code)
+// ----------------------------------------------------------------
+
+const SingleEliminationBracketFlow: React.FC<{ matches: MatchType[] }> = ({
+  matches,
+}) => {
+  const rounds = generateRounds(matches);
+  const baseY = computeBaseY(rounds);
+
+  const matchNodes = generateMatchNodes(rounds, baseY);
+  const roundLabelNodes = generateRoundLabelNodes(rounds);
+  const nodes: Node<MyNodeData>[] = [...matchNodes, ...roundLabelNodes];
+  const edges = generateEdges(rounds);
+
+  return (
+    <div className="flex justify-center items-center w-full h-full">
+      <ReactFlow
+        fitView
+        nodes={nodes}
+        edges={edges}
+        nodeTypes={{ custom: Match, label: RoundLabel }}
+      >
+        <MiniMap
+          nodeBorderRadius={2}
+          nodeColor={(node: Node<MyNodeData>) => {
+            if (node.type === "custom") return "#0041d0";
+            if (node.type === "label") return "#ff0072";
+            return "#fff";
+          }}
+          nodeStrokeColor={(node: Node<MyNodeData>) => {
+            if (node.type === "custom") return "#0041d0";
+            if (node.type === "label") return "#ff0072";
+            return "#eee";
+          }}
+        />
+        <Controls
+          fitViewOptions={{
+            padding: 0.3,
+          }}
+          showInteractive={false}
+          style={{ color: "#000" }}
+        />
+      </ReactFlow>
+    </div>
+  );
+};
+
+// ----------------------------------------------------------------
+// Export Main Component
+// ----------------------------------------------------------------
+
+export default DoubleEliminationBracketFlow;
